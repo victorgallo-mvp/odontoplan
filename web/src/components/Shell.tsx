@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useClinic } from "../lib/clinic";
 import { Badge, Button, useToast } from "./ui";
@@ -56,17 +56,48 @@ const nav = [
 
 export default function Shell() {
   const { clinic } = useClinic();
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  // fecha a gaveta ao navegar
+  useEffect(() => setOpen(false), [location.pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const brand = (
+    <>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white" style={{ background: clinic?.primaryColor ?? "#0F766E" }}>
+        <span className="font-serif text-lg font-semibold">S</span>
+      </div>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold leading-tight">{clinic?.name ?? "OdontoPlan"}</div>
+        <div className="truncate text-xs text-mute">{clinic ? `${clinic.city}/${clinic.state}` : "carregando…"}</div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="flex min-h-screen">
-      <aside className="no-print sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-line bg-card">
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      {/* Celular/tablet: barra superior com o menu */}
+      <header className="no-print sticky top-0 z-40 flex items-center gap-3 border-b border-line bg-card px-4 py-2.5 lg:hidden">
+        <button type="button" onClick={() => setOpen(true)} aria-label="Abrir menu" aria-expanded={open} className="-ml-1 flex h-10 w-10 items-center justify-center rounded-lg text-xl text-ink-2 hover:bg-paper">
+          ☰
+        </button>
+        {brand}
+      </header>
+      {open && <div className="no-print fixed inset-0 z-40 bg-ink/40 lg:hidden" onClick={() => setOpen(false)} aria-hidden />}
+
+      <aside
+        className={`no-print fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] shrink-0 flex-col overflow-y-auto border-r border-line bg-card transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-60 lg:translate-x-0 ${open ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`}
+      >
         <div className="flex items-center gap-3 px-5 pb-4 pt-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ background: clinic?.primaryColor ?? "#0F766E" }}>
-            <span className="font-serif text-lg font-semibold">S</span>
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold leading-tight">{clinic?.name ?? "OdontoPlan"}</div>
-            <div className="truncate text-xs text-mute">{clinic ? `${clinic.city}/${clinic.state}` : "carregando…"}</div>
-          </div>
+          {brand}
+          <button type="button" onClick={() => setOpen(false)} aria-label="Fechar menu" className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-mute hover:bg-paper lg:hidden">
+            ✕
+          </button>
         </div>
         <nav className="flex flex-col gap-0.5 px-3">
           {nav.map((n) => (
@@ -75,7 +106,7 @@ export default function Shell() {
               to={n.to}
               end={n.end}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? "bg-brand-soft font-medium text-brand-2" : "text-ink-2 hover:bg-paper hover:text-ink"}`
+                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors lg:py-2 ${isActive ? "bg-brand-soft font-medium text-brand-2" : "text-ink-2 hover:bg-paper hover:text-ink"}`
               }
             >
               <span className="w-4 text-center text-base leading-none opacity-70">{n.icon}</span>
@@ -83,7 +114,7 @@ export default function Shell() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto space-y-2 px-5 pb-5 text-xs text-mute">
+        <div className="mt-auto space-y-2 px-5 pb-5 pt-6 text-xs text-mute">
           <div>
             <div className="mb-1">Textos por IA</div>
             {clinic?.ai.enabled ? <Badge tone="green">ligada · {clinic.ai.model}</Badge> : <Badge>desligada · usando modelos padrão</Badge>}

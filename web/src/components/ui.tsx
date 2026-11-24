@@ -31,8 +31,8 @@ export function Card({ children, className, title, action }: { children: ReactNo
   return (
     <section className={cx("card p-5", className)}>
       {(title || action) && (
-        <header className="mb-4 flex items-start justify-between gap-4">
-          {title && <h2 className="min-w-0 flex-1 text-[15px] font-semibold text-ink">{title}</h2>}
+        <header className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+          {title && <h2 className="min-w-40 flex-1 text-[15px] font-semibold text-ink">{title}</h2>}
           {action}
         </header>
       )}
@@ -123,11 +123,11 @@ export function Modal({ open, onClose, title, children, width = "max-w-lg" }: { 
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onMouseDown={onClose} role="dialog" aria-modal="true" aria-label={title}>
-      <div className={cx("card w-full p-6", width)} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="rounded-md p-1 text-mute hover:bg-black/5 hover:text-ink" aria-label="Fechar">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-2 sm:items-center sm:p-4" onMouseDown={onClose} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={cx("card max-h-[calc(100dvh-1rem)] w-full overflow-y-auto p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-6", width)} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h2 className="min-w-0 text-lg font-semibold">{title}</h2>
+          <button onClick={onClose} className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/5 hover:text-ink" aria-label="Fechar">
             ✕
           </button>
         </div>
@@ -152,7 +152,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="no-print pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col gap-2">
+      <div className="no-print pointer-events-none fixed inset-x-3 bottom-4 z-[60] flex flex-col gap-2 sm:inset-x-auto sm:right-4">
         {toasts.map((t) => (
           <div key={t.id} className={cx("rounded-lg px-4 py-2.5 text-sm text-white shadow-lg", t.tone === "ok" ? "bg-ink" : "bg-rose")}>
             {t.message}

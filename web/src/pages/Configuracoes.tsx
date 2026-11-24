@@ -16,14 +16,14 @@ const TABS: { id: Tab; label: string }[] = [
 export default function Configuracoes() {
   const [tab, setTab] = useState<Tab>("servicos");
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-8">
       <header className="mb-5">
         <h1 className="text-2xl font-semibold">Configurações</h1>
         <p className="mt-1 text-sm text-ink-2">Organize os serviços, os valores de tabela, o tipo de cada tratamento, as regras de pagamento e os modelos de plano.</p>
       </header>
-      <div className="mb-5 flex gap-1 border-b border-line" role="tablist">
+      <div className="-mx-4 mb-5 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0" role="tablist">
         {TABS.map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cx("-mb-px border-b-2 px-4 py-2 text-sm font-medium", tab === t.id ? "border-brand text-brand-2" : "border-transparent text-ink-2 hover:text-ink")}>
+          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cx("-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium", tab === t.id ? "border-brand text-brand-2" : "border-transparent text-ink-2 hover:text-ink")}>
             {t.label}
           </button>
         ))}
@@ -169,7 +169,7 @@ function Servicos() {
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Input placeholder="Buscar serviço…" value={q} onChange={(e) => setQ(e.target.value)} className="h-9 w-64" />
+          <Input placeholder="Buscar serviço…" value={q} onChange={(e) => setQ(e.target.value)} className="h-9 w-64 max-sm:w-full" />
           <button className={chip(cat === "")} onClick={() => setCat("")}>
             Todos
           </button>
@@ -185,7 +185,7 @@ function Servicos() {
             <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
             Mostrar inativos
           </label>
-          <Button size="sm" variant="primary" className="ml-auto" onClick={() => setCreating(true)}>
+          <Button size="sm" variant="primary" className="sm:ml-auto" onClick={() => setCreating(true)}>
             + Novo serviço
           </Button>
         </div>
@@ -204,7 +204,7 @@ function Servicos() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="stack w-full text-sm md:min-w-[860px]">
             <thead>
               <tr className="text-left text-xs text-mute">
                 <th className="w-8 pb-2">
@@ -220,7 +220,7 @@ function Servicos() {
             <tbody className="divide-y divide-line">
               {list.map((p) => (
                 <tr key={p.id} className={cx(!p.active && "opacity-55")}>
-                  <td className="py-2">
+                  <td className="py-2 max-md:order-last max-md:justify-self-end" data-label="Selecionar">
                     <input
                       type="checkbox"
                       aria-label={`Selecionar ${p.name}`}
@@ -235,12 +235,12 @@ function Servicos() {
                       }
                     />
                   </td>
-                  <td className="py-2 pr-3">
+                  <td className="full py-2 pr-3 max-md:order-first">
                     <Input
                       key={p.name}
                       defaultValue={p.name}
                       aria-label="Nome do serviço"
-                      className="h-9 w-full min-w-56 border-transparent bg-transparent px-2 font-medium hover:border-line-2 focus:bg-card"
+                      className="h-9 w-full border-transparent bg-transparent px-2 font-medium hover:border-line-2 focus:bg-card md:min-w-56"
                       onBlur={(e) => {
                         const v = e.target.value.trim();
                         if (v.length >= 2 && v !== p.name) void patch(p.id, { name: v });
@@ -252,13 +252,13 @@ function Servicos() {
                       {p.externalId ? " · Clinicorp" : " · criado aqui"}
                     </div>
                   </td>
-                  <td className="py-2 pr-3">
-                    <div className="flex items-center gap-2">
+                  <td className="full py-2 pr-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       <CategoryButtons value={p.category} confirmed={p.categoryConfirmed} onChange={(c) => void patch(p.id, { category: c })} />
                       {!p.categoryConfirmed && <Badge tone="amber">a confirmar</Badge>}
                     </div>
                   </td>
-                  <td className="py-2 pr-3">
+                  <td className="py-2 pr-3" data-label="Valor de tabela (R$)">
                     <Input
                       key={p.basePrice}
                       type="number"
@@ -266,14 +266,14 @@ function Servicos() {
                       step={10}
                       defaultValue={p.basePrice}
                       aria-label={`Valor de tabela de ${p.name}`}
-                      className="num h-9 w-32"
+                      className="num h-9 w-32 max-md:w-full"
                       onBlur={(e) => {
                         const v = Math.max(0, Number(e.target.value) || 0);
                         if (v !== p.basePrice) void patch(p.id, { basePrice: v });
                       }}
                     />
                   </td>
-                  <td className="py-2 pr-3">
+                  <td className="py-2 pr-3" data-label="Duração (min)">
                     <Input
                       key={p.durationMin}
                       type="number"
@@ -281,14 +281,14 @@ function Servicos() {
                       step={5}
                       defaultValue={p.durationMin}
                       aria-label={`Duração de ${p.name}`}
-                      className="num h-9 w-20"
+                      className="num h-9 w-20 max-md:w-full"
                       onBlur={(e) => {
                         const v = Math.min(600, Math.max(5, Math.round(Number(e.target.value) || 60)));
                         if (v !== p.durationMin) void patch(p.id, { durationMin: v });
                       }}
                     />
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="py-2 text-right max-md:text-left" data-label="Ativo">
                     <input type="checkbox" aria-label={`${p.name} ativo`} checked={p.active} onChange={(e) => void patch(p.id, { active: e.target.checked })} />
                   </td>
                 </tr>

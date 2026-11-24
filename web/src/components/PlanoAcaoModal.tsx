@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { brl } from "../lib/format";
-import { STAGE_LABEL, type Proposal } from "../lib/types";
-import { Badge, Modal, Spinner, useToast } from "./ui";
+import { LOST_REASONS, STAGES, STAGE_LABEL, type Proposal, type Stage } from "../lib/types";
+import { Modal, Select, Spinner, useToast } from "./ui";
 import { PlanoAcao } from "./PlanoAcao";
 
 /**
@@ -34,6 +34,23 @@ export function PlanoAcaoModal({ proposalId, onClose }: { proposalId: string | n
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposalId]);
 
+  // Mesmo efeito de arrastar o cartão no Kanban (útil no celular, onde arrastar é difícil)
+  async function changeStage(stage: Stage) {
+    if (!p || stage === p.stage) return;
+    let lostReason: string | undefined;
+    if (stage === "perdida") {
+      lostReason = window.prompt("Motivo da perda:", LOST_REASONS[1]) ?? undefined;
+      if (lostReason === undefined) return;
+    }
+    try {
+      await api.patch(`/proposals/${p.id}/stage`, { stage, lostReason });
+      changed.current = true;
+      setP(await api.get<Proposal>(`/proposals/${p.id}`));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Falha ao mover", "error");
+    }
+  }
+
   return (
     <Modal open={!!proposalId} onClose={() => onClose(changed.current)} title={p ? `Plano de ação — ${p.patient.name}` : "Plano de ação"} width="max-w-6xl">
       {!p ? (
@@ -43,13 +60,19 @@ export function PlanoAcaoModal({ proposalId, onClose }: { proposalId: string | n
           <div className="-mt-2 mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
             <span>{p.title}</span>
             <span className="num font-medium text-ink">{brl(p.total)}</span>
-            <Badge tone={p.stage === "aceita" ? "green" : p.stage === "perdida" ? "rose" : "brand"}>{STAGE_LABEL[p.stage]}</Badge>
             <span>{p.dentist.name}</span>
-            <Link to={`/propostas/${p.id}`} className="ml-auto font-medium text-brand hover:underline">
+            <Select value={p.stage} onChange={(e) => void changeStage(e.target.value as Stage)} className="h-9 w-56 text-[13px] max-sm:w-full" aria-label="Etapa da proposta">
+              {STAGES.map((s) => (
+                <option key={s} value={s}>
+                  Etapa: {STAGE_LABEL[s]}
+                </option>
+              ))}
+            </Select>
+            <Link to={`/propostas/${p.id}`} className="font-medium text-brand hover:underline sm:ml-auto">
               Abrir proposta completa →
             </Link>
           </div>
-          <div className="-mx-2 max-h-[72vh] overflow-y-auto px-2 pb-1">
+          <div className="sm:-mx-2 sm:max-h-[72vh] sm:overflow-y-auto sm:px-2 sm:pb-1">
             <PlanoAcao
               embedded
               p={p}

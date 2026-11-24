@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { api } from "../lib/api";
 import { useClinic } from "../lib/clinic";
 import { brl, daysSince } from "../lib/format";
@@ -110,7 +110,7 @@ function Column({ stage, cards: all, alertDays, onDelete, onOpen }: { stage: Sta
   const closed = stage === "aceita" || stage === "perdida";
   const cards = closed ? all.slice(0, CLOSED_LIMIT) : all;
   return (
-    <div ref={setNodeRef} className={cx("flex w-72 shrink-0 flex-col rounded-xl bg-black/4 transition-colors", isOver && "bg-brand-soft ring-2 ring-brand/40")}>
+    <div ref={setNodeRef} className={cx("flex w-72 shrink-0 snap-start scroll-ml-4 flex-col rounded-xl bg-black/4 transition-colors max-sm:w-[82vw]", isOver && "bg-brand-soft ring-2 ring-brand/40")}>
       <header className="flex items-center justify-between px-3 pb-2 pt-3">
         <h2 className="text-sm font-semibold">
           {STAGE_LABEL[stage]} <span className="num ml-1 font-normal text-mute">{all.length}</span>
@@ -174,7 +174,8 @@ export default function Kanban() {
     return m;
   }, [pieces]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // Mouse: arrasta após 6px. Toque: só após segurar 250 ms, para a rolagem continuar livre.
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }));
 
   // Mover vale para os itens ainda pendentes da proposta (ou para ela inteira, se não está dividida).
   async function move(card: ProposalCard, stage: Stage, reason?: string) {
@@ -203,16 +204,16 @@ export default function Kanban() {
   }
 
   return (
-    <div className="px-8 py-8">
+    <div className="px-4 py-5 sm:px-8 sm:py-8">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Propostas</h1>
           <p className="mt-1 max-w-3xl text-sm text-ink-2">
-            Clique num cartão para abrir o plano de ação e aceitar ou recusar item a item: a parte aceita vai para “Aceita”, a recusada para “Perdida” e o que falta decidir continua na etapa. Arrastar move o que ainda está pendente. Apresentadas há mais de {alertDays} dias ficam marcadas para follow-up.
+            Clique num cartão para abrir o plano de ação e aceitar ou recusar item a item: a parte aceita vai para “Aceita”, a recusada para “Perdida” e o que falta decidir continua na etapa. Arrastar move o que ainda está pendente (no celular, segure o cartão ou mude a etapa dentro dele). Apresentadas há mais de {alertDays} dias ficam marcadas para follow-up.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={dentistId} onChange={(e) => setDentistId(e.target.value)} className="w-56">
+        <div className="flex w-full items-center gap-3 sm:w-auto">
+          <Select value={dentistId} onChange={(e) => setDentistId(e.target.value)} className="w-56 max-sm:flex-1">
             <option value="">Todos os dentistas</option>
             {dentists.map((d) => (
               <option key={d.id} value={d.id}>
@@ -230,7 +231,7 @@ export default function Kanban() {
         <Spinner />
       ) : (
         <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
             {STAGES.map((s) => (
               <Column key={s} stage={s} cards={byStage[s]} alertDays={alertDays} onDelete={setDeleteFor} onOpen={(c) => setOpenId(c.id)} />
             ))}

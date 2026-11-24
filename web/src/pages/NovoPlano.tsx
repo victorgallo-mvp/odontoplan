@@ -173,7 +173,7 @@ export default function NovoPlano() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-5 pb-28 sm:px-8 sm:py-8 lg:pb-8">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold">Novo plano de tratamento</h1>
         <p className="mt-1 text-sm text-ink-2">Monte o plano em fases, confira os valores contra a tabela e simule as condições antes de gerar a proposta.</p>
@@ -265,7 +265,7 @@ export default function NovoPlano() {
               }
             >
               {phase.items.length > 0 && (
-                <table className="w-full text-sm">
+                <table className="stack w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-mute">
                       <th className="pb-2 font-medium">Procedimento</th>
@@ -284,30 +284,30 @@ export default function NovoPlano() {
                       const out = Math.abs(dev) > tolerance;
                       return (
                         <tr key={it.key}>
-                          <td className="py-2 pr-3">
+                          <td className="full py-2 pr-3">
                             <div className="flex items-center gap-2">
                               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[proc?.category ?? "clinico"] }} />
                               <span className="font-medium">{proc?.name}</span>
                             </div>
                             <div className="pl-4 text-xs text-mute">tabela {brl(base)}</div>
                           </td>
-                          <td className="py-2 pr-3">
+                          <td className="full py-2 pr-3" data-label="Dente / região">
                             <button
                               type="button"
                               onClick={() => setToothFor({ phaseKey: phase.key, itemKey: it.key })}
-                              className={cx("flex h-9 w-40 items-center gap-1.5 rounded-lg border px-2.5 text-left text-sm hover:border-brand", it.toothRegion ? "border-line-2 bg-card" : "border-dashed border-line-2 text-mute")}
+                              className={cx("flex h-9 w-40 max-md:h-11 max-md:w-full items-center gap-1.5 rounded-lg border px-2.5 text-left text-sm hover:border-brand", it.toothRegion ? "border-line-2 bg-card" : "border-dashed border-line-2 text-mute")}
                               title={it.toothRegion || "Selecionar dentes no odontograma"}
                             >
                               <span aria-hidden className="text-mute">🦷</span>
                               <span className="num truncate">{it.toothRegion || "Selecionar"}</span>
                             </button>
                           </td>
-                          <td className="py-2 pr-3">
-                            <Input type="number" min={1} max={32} value={it.quantity} onChange={(e) => updateItem(phase.key, it.key, { quantity: Math.max(1, Number(e.target.value) || 1) })} className="h-9 w-16" />
+                          <td className="py-2 pr-3" data-label="Quantidade">
+                            <Input type="number" min={1} max={32} value={it.quantity} onChange={(e) => updateItem(phase.key, it.key, { quantity: Math.max(1, Number(e.target.value) || 1) })} className="h-9 w-16 max-md:w-full" />
                           </td>
-                          <td className="py-2 pr-3">
-                            <div className="flex items-center gap-2">
-                              <Input type="number" min={0} step={10} value={it.unitPrice} onChange={(e) => updateItem(phase.key, it.key, { unitPrice: Math.max(0, Number(e.target.value) || 0) })} className={cx("num h-9 w-28", out && "border-amber bg-amber-soft/60")} />
+                          <td className="py-2 pr-3" data-label="Valor unitário (R$)">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Input type="number" min={0} step={10} value={it.unitPrice} onChange={(e) => updateItem(phase.key, it.key, { unitPrice: Math.max(0, Number(e.target.value) || 0) })} className={cx("num h-9 w-28 max-md:w-full", out && "border-amber bg-amber-soft/60")} />
                               {out && (
                                 <Badge tone="amber">
                                   {dev > 0 ? "+" : ""}
@@ -316,10 +316,12 @@ export default function NovoPlano() {
                               )}
                             </div>
                           </td>
-                          <td className="num py-2 text-right font-medium">{brl(it.unitPrice * it.quantity)}</td>
+                          <td className="num py-2 text-right font-medium max-md:text-left" data-label="Total do item">
+                            {brl(it.unitPrice * it.quantity)}
+                          </td>
                           <td className="py-2 pl-2 text-right">
-                            <button onClick={() => removeItem(phase.key, it.key)} className="rounded p-1 text-mute hover:bg-rose-soft hover:text-rose" aria-label="Remover item">
-                              ✕
+                            <button onClick={() => removeItem(phase.key, it.key)} className="rounded p-1 text-mute hover:bg-rose-soft hover:text-rose max-md:px-3 max-md:py-2 max-md:text-sm max-md:text-rose" aria-label="Remover item">
+                              <span className="md:hidden">Remover </span>✕
                             </button>
                           </td>
                         </tr>
@@ -487,11 +489,22 @@ export default function NovoPlano() {
             </div>
           </Card>
 
-          <Button variant="primary" size="lg" className="mt-4 w-full" disabled={saving || !patient || itemCount === 0} onClick={generate}>
+          <Button variant="primary" size="lg" className="mt-4 w-full max-lg:hidden" disabled={saving || !patient || itemCount === 0} onClick={generate}>
             {saving ? "Gerando proposta…" : "Gerar proposta"}
           </Button>
           <p className="mt-2 text-center text-xs text-mute">A proposta nasce "Em planejamento" e abre para edição.</p>
         </aside>
+      </div>
+
+      {/* Celular: total e botão de gerar sempre à mão */}
+      <div className="no-print fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] text-mute">Total do plano</div>
+          <div className="num truncate text-lg font-semibold leading-tight">{brl(total)}</div>
+        </div>
+        <Button variant="primary" disabled={saving || !patient || itemCount === 0} onClick={generate}>
+          {saving ? "Gerando…" : "Gerar proposta"}
+        </Button>
       </div>
 
       {toothFor && toothItem && (

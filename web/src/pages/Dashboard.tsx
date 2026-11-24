@@ -30,7 +30,7 @@ export default function Dashboard() {
   const soldTotal = dentists.reduce((s, d) => s + d.acceptedValue, 0);
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-8">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Visão geral</h1>
@@ -104,7 +104,36 @@ export default function Dashboard() {
             {dentists.length === 0 ? (
               <p className="text-sm text-mute">Nenhum dentista com propostas no período.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Celular: lista compacta */}
+              <ul className="divide-y divide-line md:hidden">
+                {dentists.map((d, i) => (
+                  <li key={d.dentistId} className="py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="num text-xs text-mute">{i + 1}º</span>
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
+                        <span className="truncate font-medium">{d.name}</span>
+                      </span>
+                      <span className="num shrink-0 font-semibold">{brl0(d.acceptedValue)}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/6">
+                      <div className="h-full rounded-full bg-brand" style={{ width: `${(d.acceptedValue / topAccepted) * 100}%` }} />
+                    </div>
+                    <div className="num mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-2">
+                      <span>{d.acceptedProposals} fechadas</span>
+                      <span>ticket {d.acceptedProposals ? brl0(d.avgTicket) : "–"}</span>
+                      <span>aceitação {pct(d.acceptanceRate)}</span>
+                      <span>{d.proposalsCreated} criadas</span>
+                      <span>pago {brl0(d.paidValue)}</span>
+                      <span>
+                        em aberto {d.openCount} · {brl0(d.openValue)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="overflow-x-auto max-md:hidden">
                 <table className="w-full min-w-[1000px] text-sm">
                   <thead>
                     <tr className="text-left text-xs text-mute">
@@ -152,6 +181,7 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
             <p className="mt-4 text-xs text-mute">
               Valor aceito = itens aceitos no período, já com o desconto da proposta (aceite parcial conta só a parte aceita). Aceitação = aceitas ÷ (aceitas + perdidas) entre as propostas decididas no período. “Em aberto hoje” é o que ainda está em negociação, independente do período.
@@ -160,7 +190,7 @@ export default function Dashboard() {
 
           <div className="mt-6 grid gap-4 lg:grid-cols-5">
             <Card title="Funil de propostas (todas)" className="lg:col-span-3">
-              <ol className="grid grid-cols-6 gap-2">
+              <ol className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {(["planejamento", "revisada", "apresentada", "negociacao", "aceita", "perdida"] as const).map((s) => {
                   const f = data.funnel.find((x) => x.stage === s);
                   return (

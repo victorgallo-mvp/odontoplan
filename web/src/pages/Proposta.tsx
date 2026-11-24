@@ -37,6 +37,16 @@ export default function Proposta() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [view, setView] = useState<"doc" | "acao">("doc");
 
+  // Em telas mais estreitas que a folha A4 (210mm ≈ 794px), reduz o documento para caber.
+  // Só na tela: a impressão ignora (--doc-zoom vale apenas em @media screen).
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    const fit = () => setZoom(Math.min(1, (window.innerWidth - 16) / 794));
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+
   const load = useCallback(async () => {
     const data = await api.get<Proposal>(`/proposals/${id}`);
     setP(data);
@@ -136,14 +146,14 @@ export default function Proposta() {
   return (
     <div className="min-h-screen bg-paper">
       <div className="no-print sticky top-0 z-30 border-b border-line bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-3 px-6 py-3">
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
           <Link to="/propostas" className="text-sm text-ink-2 hover:text-ink">
             ← Propostas
           </Link>
           <span className="text-line-2">|</span>
           <span className="text-sm font-medium">{p.patient.name}</span>
           <Badge tone={p.stage === "aceita" ? "green" : p.stage === "perdida" ? "rose" : "brand"}>{STAGE_LABEL[p.stage]}</Badge>
-          <Select value={p.stage} onChange={(e) => void moveStage(e.target.value as Stage)} className="h-9 w-64 text-[13px]">
+          <Select value={p.stage} onChange={(e) => void moveStage(e.target.value as Stage)} className="h-9 w-64 text-[13px] max-sm:w-full">
             {STAGES.map((s) => (
               <option key={s} value={s}>
                 Mover para: {STAGE_LABEL[s]}
@@ -157,7 +167,7 @@ export default function Proposta() {
               </button>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
             {source && <Badge tone={source === "ai" ? "green" : "neutral"}>{source === "ai" ? "rascunho da IA" : "texto padrão"} — revise antes de apresentar</Badge>}
             <Button size="sm" onClick={regenerate} disabled={busy !== null}>
               {busy === "ai" ? "Gerando…" : "Regenerar textos com IA"}
@@ -189,7 +199,7 @@ export default function Proposta() {
             </Button>
           </div>
         </Modal>
-        {view === "doc" && <p className="mx-auto max-w-[1200px] px-6 pb-2 text-xs text-mute">Todos os textos são editáveis: clique em um parágrafo para ajustar. O que você vê é o que sai no PDF.</p>}
+        {view === "doc" && <p className="mx-auto max-w-[1200px] px-4 pb-2 text-xs text-mute sm:px-6">Todos os textos são editáveis: clique em um parágrafo para ajustar. O que você vê é o que sai no PDF.</p>}
       </div>
 
       {view === "acao" && (
@@ -199,8 +209,8 @@ export default function Proposta() {
       )}
 
       {/* O documento fica montado (só oculto) para não perder edições e para a impressão sair sempre dele. */}
-      <div className={cx("py-8 print:block print:py-0", view !== "doc" && "hidden")}>
-        <article className="doc">
+      <div className={cx("py-4 sm:py-8 print:block print:py-0", view !== "doc" && "hidden")}>
+        <article className="doc" style={{ "--doc-zoom": zoom } as React.CSSProperties}>
           {/* ── Capa ── */}
           <div className="doc-page flex min-h-[297mm] flex-col print:min-h-0">
             <div className="flex items-center justify-between">

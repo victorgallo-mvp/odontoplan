@@ -43,6 +43,20 @@ h1, h2, h3 { text-wrap: balance; }
 .editable:focus { background: #fff; box-shadow: inset 0 0 0 2px var(--color-brand); outline: none; }
 .editable:empty::before { content: attr(data-placeholder); color: var(--color-mute); }
 
+/* ── Celular: tabelas de edição viram cartões empilhados ────────────────── */
+@media (max-width: 767px) {
+  .stack, .stack > tbody { display: block; }
+  .stack > thead { display: none; }
+  .stack > tbody > tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 0.75rem; padding-block: 0.875rem; align-items: center; }
+  .stack > tbody > tr > td { display: block; padding: 0; min-width: 0; }
+  .stack > tbody > tr > td.full { grid-column: 1 / -1; }
+  .stack > tbody > tr > td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; color: var(--color-mute); margin-bottom: 2px; }
+  /* tabelas só de leitura: rolagem horizontal dentro do cartão */
+  .scroll-x { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  /* evita o zoom automático do iOS ao focar um campo */
+  input, select, textarea { font-size: 16px !important; }
+}
+
 /* ── Documento da proposta ─────────────────────────────────────────────── */
 .doc { font-family: var(--font-sans); color: #1b2430; width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; }
 .doc-page { padding: 18mm 18mm 16mm; }
@@ -55,7 +69,8 @@ h1, h2, h3 { text-wrap: balance; }
 .avoid-break { break-inside: avoid; }
 
 @media screen {
-  .doc { box-shadow: 0 2px 24px rgb(27 36 48 / 0.12); margin-bottom: 48px; }
+  /* --doc-zoom: ajustado pela página da proposta para a folha A4 caber em telas estreitas */
+  .doc { box-shadow: 0 2px 24px rgb(27 36 48 / 0.12); margin-bottom: 48px; zoom: var(--doc-zoom, 1); }
 }
 
 @page { size: A4; margin: 0; }

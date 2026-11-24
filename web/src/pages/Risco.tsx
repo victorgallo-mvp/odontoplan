@@ -51,7 +51,7 @@ export default function Risco() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-8">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Pacientes em risco</h1>
@@ -59,9 +59,9 @@ export default function Risco() {
             Score 0–100 por regras: tempo sem consulta{weights ? ` (${weights.monthsAway})` : ""}, tratamento aprovado parado{weights ? ` (${weights.pendingTreatment})` : ""}, revisão vencida{weights ? ` (${weights.recallOverdue})` : ""} e faltas{weights ? ` (${weights.noShow})` : ""}.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Input placeholder="Buscar paciente…" value={q} onChange={(e) => setQ(e.target.value)} className="w-52" />
-          <Select value={min} onChange={(e) => setMin(Number(e.target.value))} className="w-44">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+          <Input placeholder="Buscar paciente…" value={q} onChange={(e) => setQ(e.target.value)} className="w-52 max-sm:flex-1" />
+          <Select value={min} onChange={(e) => setMin(Number(e.target.value))} className="w-44 max-sm:flex-1">
             <option value={70}>Score ≥ 70 (crítico)</option>
             <option value={50}>Score ≥ 50</option>
             <option value={30}>Score ≥ 30</option>
@@ -83,7 +83,7 @@ export default function Risco() {
             </span>
           </div>
           <div className="card overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="scroll-x w-full text-sm">
               <thead className="bg-paper text-left text-xs text-ink-2">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Score</th>

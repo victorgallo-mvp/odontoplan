@@ -77,7 +77,7 @@ export function PlanoAcao({ p, onUpdated, embedded = false }: { p: Proposal; onU
   const clinicorpLate = p.payments.filter((x) => x.status === "atrasado").reduce((s, x) => s + x.amount, 0);
 
   return (
-    <div className={embedded ? "" : "mx-auto max-w-[1100px] px-6 py-8"}>
+    <div className={embedded ? "" : "mx-auto max-w-[1100px] px-4 py-5 sm:px-6 sm:py-8"}>
       <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           {!embedded && <h1 className="text-2xl font-semibold">Plano de ação</h1>}
@@ -114,7 +114,7 @@ export function PlanoAcao({ p, onUpdated, embedded = false }: { p: Proposal; onU
           const unpaid = accepted.filter((i) => !i.paidAt);
           return (
             <section key={ph.id} className="card overflow-hidden">
-              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
                 <div>
                   <h2 className="text-[15px] font-semibold">
                     {phaseTitle(ph.order, ph.name)}
@@ -136,7 +136,7 @@ export function PlanoAcao({ p, onUpdated, embedded = false }: { p: Proposal; onU
                 </div>
               </header>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-sm">
+                <table className="stack w-full text-sm md:min-w-[760px]">
                   <thead>
                     <tr className="text-left text-xs text-mute">
                       <th className="px-5 py-2 font-medium">Procedimento</th>
@@ -148,8 +148,8 @@ export function PlanoAcao({ p, onUpdated, embedded = false }: { p: Proposal; onU
                   </thead>
                   <tbody className="divide-y divide-line">
                     {ph.items.map((it) => (
-                      <tr key={it.id} className={cx(it.decision === "recusado" && "bg-rose-soft/30")}>
-                        <td className="px-5 py-2.5">
+                      <tr key={it.id} className={cx("max-md:px-4", it.decision === "recusado" && "bg-rose-soft/30")}>
+                        <td className="full px-5 py-2.5">
                           <div className="flex items-center gap-2">
                             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[it.procedure.category] }} title={CATEGORY_LABEL[it.procedure.category]} />
                             <span className={cx("font-medium", it.decision === "recusado" && "text-ink-2 line-through")}>{it.description}</span>
@@ -159,10 +159,14 @@ export function PlanoAcao({ p, onUpdated, embedded = false }: { p: Proposal; onU
                             {it.quantity > 1 ? ` · ${it.quantity} × ${brl(it.unitPrice)}` : ""}
                           </div>
                         </td>
-                        <td className="num px-3 py-2.5 text-ink-2">{it.toothRegion ?? "–"}</td>
-                        <td className="num px-3 py-2.5 text-right font-medium">{brl(it.total)}</td>
-                        <td className="px-3 py-2.5">
-                          <div className="inline-flex overflow-hidden rounded-lg border border-line-2" role="group" aria-label={`Decisão para ${it.description}`}>
+                        <td className="num px-3 py-2.5 text-ink-2" data-label="Dente / região">
+                          {it.toothRegion ?? "–"}
+                        </td>
+                        <td className="num px-3 py-2.5 text-right font-medium max-md:text-left" data-label="Valor">
+                          {brl(it.total)}
+                        </td>
+                        <td className="full px-3 py-2.5">
+                          <div className="inline-flex overflow-hidden rounded-lg border border-line-2 max-md:flex" role="group" aria-label={`Decisão para ${it.description}`}>
                             {(["pendente", "aceito", "recusado"] as const).map((d) => (
                               <button
                                 key={d}
@@ -170,14 +174,14 @@ export function PlanoAcao({ p, onUpdated, embedded = false }: { p: Proposal; onU
                                 disabled={busy}
                                 aria-pressed={it.decision === d}
                                 onClick={() => decide([it], d, it.description)}
-                                className={cx("px-2.5 py-1.5 text-xs font-medium transition-colors", it.decision === d ? DECISION_STYLE[d] : "bg-card text-ink-2 hover:bg-paper")}
+                                className={cx("px-2.5 py-1.5 text-xs font-medium transition-colors max-md:flex-1 max-md:py-2.5 max-md:text-sm", it.decision === d ? DECISION_STYLE[d] : "bg-card text-ink-2 hover:bg-paper")}
                               >
                                 {DECISION_LABEL[d]}
                               </button>
                             ))}
                           </div>
                         </td>
-                        <td className="px-5 py-2.5">
+                        <td className="full px-5 py-2.5">
                           {it.decision === "aceito" && (
                             <label className="flex items-center gap-2 text-sm">
                               <input type="checkbox" checked={!!it.paidAt} disabled={busy} onChange={(e) => void send([{ id: it.id, paid: e.target.checked }])} />
@@ -214,7 +218,7 @@ export function PlanoAcao({ p, onUpdated, embedded = false }: { p: Proposal; onU
             )}
             . O Clinicorp lança por orçamento, não por item: use como conferência ao confirmar os pagamentos acima.
           </p>
-          <table className="mt-3 w-full text-sm">
+          <table className="scroll-x mt-3 w-full text-sm">
             <tbody className="divide-y divide-line">
               {p.payments.map((pay) => (
                 <tr key={pay.id}>

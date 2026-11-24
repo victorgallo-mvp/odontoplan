@@ -20,7 +20,7 @@ function Heatmap({ cells, title, subtitle }: { cells: InstallmentCell[]; title: 
   return (
     <Card title={title}>
       <p className="-mt-2 mb-4 text-xs text-mute">{subtitle}</p>
-      <div className="grid gap-1" style={{ gridTemplateColumns: "140px repeat(4, minmax(0, 1fr))" }}>
+      <div className="grid gap-1" style={{ gridTemplateColumns: "minmax(72px, 140px) repeat(4, minmax(0, 1fr))" }}>
         <div />
         {INSTALLMENTS.map((n) => (
           <div key={n} className="pb-1 text-center text-xs font-medium text-ink-2">
@@ -73,7 +73,7 @@ export default function Precificacao() {
   const split = data.clareamentoSplit;
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold">Diagnóstico de precificação</h1>
         <p className="mt-1 text-sm text-ink-2">
@@ -122,7 +122,7 @@ export default function Precificacao() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <table className="mt-3 w-full text-sm">
+              <table className="scroll-x mt-3 w-full text-sm">
                 <thead className="text-left text-xs text-mute">
                   <tr>
                     <th className="py-1 font-medium">Faixa</th>
@@ -170,7 +170,7 @@ export default function Precificacao() {
           )}
 
           <Card title="Por dentista">
-            <table className="w-full text-sm">
+            <table className="scroll-x w-full text-sm">
               <thead className="text-left text-xs text-mute">
                 <tr>
                   <th className="py-1 font-medium">Dentista</th>

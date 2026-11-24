@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { LOWER_DECIDUOUS, LOWER_PERMANENT, UPPER_DECIDUOUS, UPPER_PERMANENT, formatTeeth, isDeciduous, isUpper, joinRegion, sortTeeth, toothKind, type ToothKind } from "../lib/teeth";
 import { Button, Field, Input, Modal, cx } from "./ui";
 
@@ -181,6 +181,12 @@ export function ToothPicker({ open, title, initialTeeth, initialNote, onClose, o
   const [note, setNote] = useState(initialNote);
   const [deciduous, setDeciduous] = useState(initialTeeth.some(isDeciduous));
   const [syncQuantity, setSyncQuantity] = useState(true);
+  // no celular o odontograma é mais largo que a tela: começa centralizado na linha média
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scroller.current;
+    if (el) el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+  }, [open, deciduous]);
 
   const toggle = (t: number) => setTeeth((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : sortTeeth([...cur, t])));
   const toggleGroup = (group: number[]) => setTeeth((cur) => (group.every((t) => cur.includes(t)) ? cur.filter((t) => !group.includes(t)) : sortTeeth([...new Set([...cur, ...group])])));
@@ -204,14 +210,15 @@ export function ToothPicker({ open, title, initialTeeth, initialNote, onClose, o
         <button type="button" className={chip} onClick={() => setTeeth([])}>
           Limpar
         </button>
-        <label className="ml-auto flex items-center gap-2 text-xs text-ink-2">
+        <label className="flex items-center gap-2 text-xs text-ink-2 sm:ml-auto">
           <input type="checkbox" checked={deciduous} onChange={(e) => setDeciduous(e.target.checked)} />
           Mostrar dentes de leite
         </label>
       </div>
-      <div className="rounded-lg border border-line bg-paper/60 p-3">
-        <Odontograma selected={teeth} onToggle={toggle} showDeciduous={deciduous} />
+      <div ref={scroller} className="overflow-x-auto rounded-lg border border-line bg-paper/60 p-3">
+        <Odontograma className="max-sm:min-w-[620px]" selected={teeth} onToggle={toggle} showDeciduous={deciduous} />
       </div>
+      <p className="mt-1 text-xs text-mute sm:hidden">Arraste para os lados para ver todos os dentes.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr]">
         <div>
           <div className="text-[13px] font-medium text-ink-2">
