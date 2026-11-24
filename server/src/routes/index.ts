@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/db.js";
+import { isPostgres } from "../lib/env.js";
 import { churnWeightsOf, getDefaultClinic, paymentConfigOf } from "../lib/clinic.js";
 import { buildScenarios, cardScenario, downPaymentFromPct, maxCardInstallments, minimumDownPayment, ownInstallmentScenario } from "../domain/payment.js";
 import { CATEGORIES } from "../domain/types.js";
@@ -190,11 +191,15 @@ api.delete("/plan-templates/:id", h(async (req, res) => {
   res.json({ deleted: true });
 }));
 
+// Busca sem diferenciar maiúsculas: o LIKE do SQLite já é assim; no Postgres
+// precisa de mode "insensitive" (opção que o client gerado para SQLite não tipa).
+const contains = (q: string): { contains: string } => (isPostgres ? ({ contains: q, mode: "insensitive" } as { contains: string }) : { contains: q });
+
 api.get("/patients", h(async (req, res) => {
   const clinic = await getDefaultClinic();
   const q = String(req.query.q ?? "").trim();
   const patients = await prisma.patient.findMany({
-    where: { clinicId: clinic.id, ...(q ? { OR: [{ name: { contains: q } }, { phone: { contains: q } }] } : {}) },
+    where: { clinicId: clinic.id, ...(q ? { OR: [{ name: contains(q) }, { phone: contains(q) }] } : {}) },
     orderBy: { name: "asc" },
     take: 20,
     include: { appointments: { where: { status: "realizada" }, orderBy: { scheduledAt: "desc" }, take: 1, select: { scheduledAt: true } } },

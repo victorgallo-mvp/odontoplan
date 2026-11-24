@@ -2,15 +2,15 @@
 // OdontoPlan — schema Prisma
 //
 // Decisões:
-//  • SQLite no MVP, mas nada específico de SQLite: sem Json, sem enum nativo
-//    (SQLite não suporta nos dois casos). Enums são String com os valores
-//    documentados aqui e tipados em src/domain/types.ts. Trocar para Postgres =
-//    mudar `provider`/`url` e rodar `prisma migrate`.
+//  • PostgreSQL em produção e SQLite no desenvolvimento local, a partir deste
+//    mesmo arquivo (ver prisma/run.mjs). Por isso nada específico de um banco:
+//    sem Json, sem enum nativo (SQLite não suporta). Enums são String com os
+//    valores documentados aqui e tipados em src/domain/types.ts.
 //  • Multi-tenant no schema desde já: toda tabela de dados de clínica tem
 //    `clinic_id`. A aplicação ainda não filtra por tenant (single-clinic).
 //  • `external_id` = id do registro no Clinicorp. É a chave de upsert do
 //    SyncService quando a integração real entrar.
-//  • Valores monetários em Float (BRL). No Postgres migrar para Decimal(12,2).
+//  • Valores monetários em Float (BRL).
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
@@ -18,8 +18,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL") // local: file:./dev.db (server/.env) · Railway: file:/data/odontoplan.db
+  // Produção (Railway) = PostgreSQL. Para desenvolvimento local com SQLite
+  // (DATABASE_URL="file:./dev.db"), prisma/run.mjs gera uma cópia deste schema
+  // com provider "sqlite" (schema.sqlite.prisma, fora do git) e usa essa cópia.
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ── Tenant ───────────────────────────────────────────────────────────────────

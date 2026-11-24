@@ -6,3 +6,6 @@ process.env.DATABASE_URL ||= "file:./dev.db";
 
 /** Produção = Railway ou NODE_ENV=production. */
 export const isProduction = process.env.NODE_ENV === "production" || !!process.env.RAILWAY_ENVIRONMENT;
+
+/** true quando o banco é PostgreSQL (produção); false no SQLite local. */
+export const isPostgres = !(process.env.DATABASE_URL ?? "").startsWith("file:");

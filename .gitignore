@@ -7,3 +7,4 @@ dist/
 server/src/generated/
 *.tsbuildinfo
 .vercel
+schema.sqlite.prisma

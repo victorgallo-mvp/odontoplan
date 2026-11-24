@@ -29,12 +29,15 @@ semente (resultado determinístico).
 **Backend no Railway** (raiz do repositório; `railway.json` já define build e start):
 
 1. New Project → Deploy from GitHub repo → este repositório.
-2. No serviço, crie um **Volume** montado em `/data` (o SQLite mora nele; sem
-   volume os dados somem a cada deploy).
-3. Variables: `DATABASE_URL=file:/data/odontoplan.db`, `APP_PASSWORD=<senha de acesso>`,
-   `CORS_ORIGIN=https://<projeto>.vercel.app`, as três `CLINICORP_*` e,
-   opcional, `ANTHROPIC_API_KEY`.
+2. No projeto, adicione um banco **PostgreSQL** (New → Database → PostgreSQL).
+3. Variables do serviço: `DATABASE_URL=${{Postgres.DATABASE_URL}}`,
+   `APP_PASSWORD=<senha de acesso>`, `CORS_ORIGIN=https://<projeto>.vercel.app`,
+   as três `CLINICORP_*` e, opcional, `ANTHROPIC_API_KEY`.
 4. Settings → Networking → Generate Domain. `GET /api/health` deve responder.
+
+Produção usa PostgreSQL; o desenvolvimento local continua em SQLite
+(`DATABASE_URL="file:./dev.db"`). O `server/prisma/run.mjs` escolhe o provider
+pelo `DATABASE_URL` a partir do mesmo `schema.prisma`.
 
 O start roda `prisma db push` (cria/atualiza as tabelas) e sobe a API. Em
 produção o servidor **não sobe sem `APP_PASSWORD`**: o app guarda dados de
@@ -96,7 +99,7 @@ Cota padrão da API: **25 requisições/hora**. Um sync de 30 dias usa 7; cada
 ## Estrutura
 
 ```
-server/                 Node + Express + Prisma (SQLite)
+server/                 Node + Express + Prisma (PostgreSQL em produção, SQLite local)
   prisma/schema.prisma  schema (multi-tenant: clinic_id em toda tabela)
   prisma/seed.ts        gerador de dados fictícios com padrões embutidos
   prisma/seed-data.ts   tabela de procedimentos e arquétipos de plano
@@ -167,8 +170,8 @@ GET  /api/pricing · POST /api/ai/classify-procedure · POST /api/sync?days=30 �
 ## Decisões
 
 - **Schema portável**: sem Json nem enum nativo (SQLite não suporta); enums
-  são `String` documentados no schema e tipados em `src/domain/types.ts`.
-  Trocar para Postgres = mudar `provider`/`url` e rodar `prisma migrate`.
+  são `String` documentados no schema e tipados em `src/domain/types.ts`. O
+  mesmo schema roda em PostgreSQL (produção) e SQLite (local).
 - **Status Clinicorp × Kanban**: a proposta guarda só o `stage` do Kanban;
   `aprovado/recusado/pendente` é derivado (`estimateStatusFromStage`).
 - **Desconto fica no preço do item** (`unit_price` vs `reference_price`); o
