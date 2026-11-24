@@ -1,0 +1,25 @@
+{
+  "name": "odontoplan",
+  "private": true,
+  "version": "0.1.0",
+  "description": "OdontoPlan — copiloto de planos de tratamento para clínicas odontológicas (MVP local)",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "seed": "npm run seed -w server",
+    "test": "npm run test -w server",
+    "build": "npm run build -w server && npm run build -w web",
+    "db:studio": "npm run db:studio -w server",
+    "sync": "npm run sync -w server --",
+    "purge-seed": "npm run purge-seed -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

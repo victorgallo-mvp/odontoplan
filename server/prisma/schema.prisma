@@ -1,0 +1,418 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// OdontoPlan — schema Prisma
+//
+// Decisões:
+//  • SQLite no MVP, mas nada específico de SQLite: sem Json, sem enum nativo
+//    (SQLite não suporta nos dois casos). Enums são String com os valores
+//    documentados aqui e tipados em src/domain/types.ts. Trocar para Postgres =
+//    mudar `provider`/`url` e rodar `prisma migrate`.
+//  • Multi-tenant no schema desde já: toda tabela de dados de clínica tem
+//    `clinic_id`. A aplicação ainda não filtra por tenant (single-clinic).
+//  • `external_id` = id do registro no Clinicorp. É a chave de upsert do
+//    SyncService quando a integração real entrar.
+//  • Valores monetários em Float (BRL). No Postgres migrar para Decimal(12,2).
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL") // local: file:./dev.db (server/.env) · Railway: file:/data/odontoplan.db
+}
+
+// ── Tenant ───────────────────────────────────────────────────────────────────
+
+model Clinic {
+  id             String   @id @default(cuid())
+  externalId     String?  @unique @map("external_id") // BusinessId no Clinicorp (null = clínica do seed)
+  name           String
+  city           String
+  state          String
+  phone          String?
+  email          String?
+  logoUrl        String?  @map("logo_url")
+  primaryColor   String   @default("#0F766E") @map("primary_color")
+  secondaryColor String   @default("#134E4A") @map("secondary_color")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  settings     ClinicSettings?
+  cardFeeTiers CardFeeTier[]
+  dentists     Dentist[]
+  patients     Patient[]
+  procedures   Procedure[]
+  appointments Appointment[]
+  proposals    Proposal[]
+  payments     Payment[]
+  planTemplates PlanTemplate[]
+  syncLogs     SyncLog[]
+  tombstones   ProposalTombstone[]
+
+  @@map("clinics")
+}
+
+/// Parâmetros que alimentam as regras determinísticas (pagamento, churn, alertas).
+model ClinicSettings {
+  id       String @id @default(cuid())
+  clinicId String @unique @map("clinic_id")
+
+  // Simulador de pagamento
+  cashDiscountPct     Float   @default(10) @map("cash_discount_pct")
+  passCardFeeToPatient Boolean @default(true) @map("pass_card_fee_to_patient")
+  minDownPaymentPct   Float   @default(20) @map("min_down_payment_pct")
+  /// "pct" = % do total (minDownPaymentPct) | "fixed" = valor fixo em R$ (minDownPaymentFixed)
+  minDownPaymentMode  String  @default("pct") @map("min_down_payment_mode")
+  minDownPaymentFixed Float   @default(0) @map("min_down_payment_fixed")
+  maxOwnInstallments  Int     @default(10) @map("max_own_installments")
+  proposalValidityDays Int    @default(30) @map("proposal_validity_days")
+  priceAlertTolerancePct Float @default(10) @map("price_alert_tolerance_pct")
+
+  // Score de churn (pesos somam 100)
+  churnWeightMonthsAway       Float @default(45) @map("churn_weight_months_away")
+  churnWeightPendingTreatment Float @default(25) @map("churn_weight_pending_treatment")
+  churnWeightRecallOverdue    Float @default(15) @map("churn_weight_recall_overdue")
+  churnWeightNoShow           Float @default(15) @map("churn_weight_no_show")
+  churnMonthsForMaxScore      Int   @default(12) @map("churn_months_for_max_score")
+  recallIntervalMonths        Int   @default(6) @map("recall_interval_months")
+
+  // Kanban
+  followUpAlertDays Int @default(7) @map("follow_up_alert_days")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@map("clinic_settings")
+}
+
+/// Taxa da maquininha por nº de parcelas (repasse ao paciente).
+model CardFeeTier {
+  id           String @id @default(cuid())
+  clinicId     String @map("clinic_id")
+  installments Int
+  feePct       Float  @map("fee_pct")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, installments])
+  @@map("card_fee_tiers")
+}
+
+// ── Cadastros (espelho do Clinicorp) ─────────────────────────────────────────
+
+model Dentist {
+  id         String  @id @default(cuid())
+  clinicId   String  @map("clinic_id")
+  externalId String? @map("external_id")
+  name       String
+  cro        String?
+  specialty  String?
+  color      String  @default("#0F766E")
+  active     Boolean @default(true)
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  proposals    Proposal[]
+
+  @@unique([clinicId, externalId])
+  @@map("dentists")
+}
+
+model Patient {
+  id         String    @id @default(cuid())
+  clinicId   String    @map("clinic_id")
+  externalId String?   @map("external_id")
+  name       String
+  birthDate  DateTime? @map("birth_date")
+  gender     String?   // "F" | "M" | null
+  phone      String?
+  email      String?
+  city       String?
+  state      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  proposals    Proposal[]
+  payments     Payment[]
+
+  @@unique([clinicId, externalId])
+  @@index([clinicId, name])
+  @@map("patients")
+}
+
+/// Tabela de procedimentos com preço de referência e classificação.
+/// category: "clinico" | "funcional" | "estetico"
+/// categoryConfirmed: false quando a categoria veio de sugestão da IA e o
+/// dentista ainda não confirmou (no seed tudo vem confirmado).
+model Procedure {
+  id                String  @id @default(cuid())
+  clinicId          String  @map("clinic_id")
+  externalId        String? @map("external_id")
+  code              String
+  name              String
+  category          String
+  categoryConfirmed Boolean @default(false) @map("category_confirmed")
+  basePrice         Float   @map("base_price")
+  durationMin       Int     @default(60) @map("duration_min")
+  description       String? // explicação leiga reutilizada na proposta
+  active            Boolean @default(true)
+  /// true quando nome/preço/ativo foram editados em Configurações: o sync do
+  /// Clinicorp deixa de sobrescrever esses campos.
+  locallyEdited     Boolean @default(false) @map("locally_edited")
+
+  clinic        Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  items         ProposalItem[]
+  templateItems PlanTemplateItem[]
+
+  @@unique([clinicId, code])
+  @@unique([clinicId, externalId])
+  @@index([clinicId, category])
+  @@map("procedures")
+}
+
+/// type:   "avaliacao" | "procedimento" | "revisao"
+/// status: "agendada" | "realizada" | "faltou" | "cancelada"
+model Appointment {
+  id          String   @id @default(cuid())
+  clinicId    String   @map("clinic_id")
+  externalId  String?  @map("external_id")
+  patientId   String   @map("patient_id")
+  dentistId   String   @map("dentist_id")
+  proposalId  String?  @map("proposal_id")
+  scheduledAt DateTime @map("scheduled_at")
+  durationMin Int      @default(60) @map("duration_min")
+  type        String
+  status      String
+
+  clinic   Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient  Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  dentist  Dentist   @relation(fields: [dentistId], references: [id])
+  proposal Proposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  @@unique([clinicId, externalId])
+  @@index([clinicId, patientId, scheduledAt])
+  @@index([clinicId, scheduledAt])
+  @@map("appointments")
+}
+
+// ── Propostas / planos de tratamento ─────────────────────────────────────────
+
+/// stage (coluna do Kanban):
+///   "planejamento" | "revisada" | "apresentada" | "negociacao" | "aceita" | "perdida"
+/// Status Clinicorp é derivado: aceita→aprovado, perdida→recusado, demais→pendente.
+/// paymentMethod: "avista" | "cartao" | "boleto" (parcelamento próprio boleto/pix)
+model Proposal {
+  id             String    @id @default(cuid())
+  clinicId       String    @map("clinic_id")
+  externalId     String?   @map("external_id")
+  patientId      String    @map("patient_id")
+  dentistId      String    @map("dentist_id")
+  title          String
+  stage          String    @default("planejamento")
+  stageChangedAt DateTime  @default(now()) @map("stage_changed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  presentedAt    DateTime? @map("presented_at")
+  decidedAt      DateTime? @map("decided_at")
+  validUntil     DateTime  @map("valid_until")
+  lostReason     String?   @map("lost_reason")
+
+  // Valores (sempre calculados por código — src/domain/payment.ts)
+  referenceTotal Float @map("reference_total") // soma dos preços de tabela
+  subtotal       Float                          // soma dos preços praticados
+  discount       Float @default(0)              // desconto adicional em R$
+  total          Float                          // subtotal - discount
+
+  // Condição escolhida pelo paciente (os cenários são recalculados na tela)
+  paymentMethod    String? @map("payment_method")
+  installments     Int?    
+  downPayment      Float?  @map("down_payment")
+  installmentValue Float?  @map("installment_value")
+  finalAmount      Float?  @map("final_amount") // total após desconto à vista / repasse de taxa
+
+  // Textos da proposta — rascunho da IA, sempre editável antes de imprimir
+  summaryText  String? @map("summary_text")
+  benefitsText String? @map("benefits_text")
+  observations String?
+
+  clinic       Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient      Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  dentist      Dentist              @relation(fields: [dentistId], references: [id])
+  phases       ProposalPhase[]
+  items        ProposalItem[]
+  payments     Payment[]
+  appointments Appointment[]
+  stageEvents  ProposalStageEvent[]
+
+  @@unique([clinicId, externalId])
+  @@index([clinicId, stage])
+  @@index([clinicId, patientId])
+  @@index([clinicId, createdAt])
+  @@map("proposals")
+}
+
+/// status: "pendente" | "em_andamento" | "concluida"
+model ProposalPhase {
+  id          String    @id @default(cuid())
+  proposalId  String    @map("proposal_id")
+  order       Int
+  name        String
+  description String?   // explicação leiga da fase (rascunho IA / fallback)
+  status      String    @default("pendente")
+  completedAt DateTime? @map("completed_at")
+
+  proposal Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  items    ProposalItem[]
+
+  @@index([proposalId, order])
+  @@map("proposal_phases")
+}
+
+model ProposalItem {
+  id             String  @id @default(cuid())
+  proposalId     String  @map("proposal_id") // denormalizado p/ análises de precificação
+  phaseId        String  @map("phase_id")
+  procedureId    String  @map("procedure_id")
+  description    String  // nome do procedimento congelado no momento da proposta
+  toothRegion    String? @map("tooth_region")
+  quantity       Int     @default(1)
+  referencePrice Float   @map("reference_price") // preço de tabela na data
+  unitPrice      Float   @map("unit_price")       // preço praticado
+  total          Float                            // unitPrice * quantity
+
+  // Plano de ação: o paciente pode aceitar só parte da proposta.
+  /// decision: "pendente" | "aceito" | "recusado"
+  decision      String    @default("pendente")
+  declineReason String?   @map("decline_reason") // motivo quando recusado
+  decidedAt     DateTime? @map("decided_at")
+  paidAt        DateTime? @map("paid_at")        // pagamento confirmado (só itens aceitos)
+
+  proposal  Proposal      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  phase     ProposalPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  procedure Procedure     @relation(fields: [procedureId], references: [id])
+
+  @@index([procedureId])
+  @@index([proposalId])
+  @@map("proposal_items")
+}
+
+/// Histórico de movimentação no Kanban (dias na coluna, funil, SLA de follow-up).
+model ProposalStageEvent {
+  id         String   @id @default(cuid())
+  proposalId String   @map("proposal_id")
+  fromStage  String?  @map("from_stage")
+  toStage    String   @map("to_stage")
+  changedAt  DateTime @default(now()) @map("changed_at")
+  note       String?
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId, changedAt])
+  @@map("proposal_stage_events")
+}
+
+// ── Modelos de plano (Configurações) ────────────────────────────────────────
+
+/// Plano pré-montado (fases + procedimentos) para reaproveitar no "Novo plano".
+model PlanTemplate {
+  id        String   @id @default(cuid())
+  clinicId  String   @map("clinic_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clinic Clinic              @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  phases PlanTemplatePhase[]
+
+  @@index([clinicId, name])
+  @@map("plan_templates")
+}
+
+model PlanTemplatePhase {
+  id         String @id @default(cuid())
+  templateId String @map("template_id")
+  order      Int
+  name       String
+
+  template PlanTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  items    PlanTemplateItem[]
+
+  @@index([templateId, order])
+  @@map("plan_template_phases")
+}
+
+model PlanTemplateItem {
+  id          String @id @default(cuid())
+  phaseId     String @map("phase_id")
+  procedureId String @map("procedure_id")
+  quantity    Int    @default(1)
+
+  phase     PlanTemplatePhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  procedure Procedure         @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+
+  @@map("plan_template_items")
+}
+
+// ── Financeiro ───────────────────────────────────────────────────────────────
+
+/// method: "avista" | "cartao" | "boleto" | "pix"
+/// status: "pago" | "pendente" | "atrasado"
+model Payment {
+  id                String    @id @default(cuid())
+  clinicId          String    @map("clinic_id")
+  externalId        String?   @map("external_id")
+  proposalId        String    @map("proposal_id")
+  patientId         String    @map("patient_id")
+  amount            Float
+  method            String
+  installmentNumber Int       @default(1) @map("installment_number")
+  installmentsTotal Int       @default(1) @map("installments_total")
+  dueDate           DateTime  @map("due_date")
+  paidAt            DateTime? @map("paid_at")
+  status            String
+
+  clinic   Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  patient  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, externalId])
+  @@index([clinicId, dueDate])
+  @@map("payments")
+}
+
+// ── Integração ───────────────────────────────────────────────────────────────
+
+/// Log do SyncService (batch diário Clinicorp → tabelas locais).
+/// resource: "patients" | "dentists" | "procedures" | "appointments" | "estimates" | "payments"
+/// status:   "running" | "ok" | "error"
+/// Orçamento importado do Clinicorp que foi excluído no OdontoPlan. O sync
+/// consulta esta tabela para não reimportar (o Clinicorp continua tendo o
+/// registro; a API dele não permite excluir).
+model ProposalTombstone {
+  id         String   @id @default(cuid())
+  clinicId   String   @map("clinic_id")
+  externalId String   @map("external_id")
+  title      String
+  deletedAt  DateTime @default(now()) @map("deleted_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, externalId])
+  @@map("proposal_tombstones")
+}
+
+model SyncLog {
+  id              String    @id @default(cuid())
+  clinicId        String    @map("clinic_id")
+  resource        String
+  source          String    @default("mock") // "mock" | "clinicorp"
+  startedAt       DateTime  @default(now()) @map("started_at")
+  finishedAt      DateTime? @map("finished_at")
+  recordsUpserted Int       @default(0) @map("records_upserted")
+  status          String    @default("running")
+  error           String?
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, resource, startedAt])
+  @@map("sync_logs")
+}
